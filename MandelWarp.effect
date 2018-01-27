@@ -1,0 +1,59 @@
+-- UVTest shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "MandelWarp"
+
+UNIFORMCOUNT = 3
+UNIFORMNAMES = { "uvTexture" , "offx" , "offy" }
+UNIFORMVALUE = { 0 , 0.0 , 0.0 }
+UNIFORMTYPE = { "sampler" , "float" , "float" }
+UNIFORMID = { 0 , 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+UVMAP = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "MandelWarp", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	UVMAP = createFrameBufferFromFile(PARENT, "HDUV")
+	LIGHTING = createFrameBufferFromFile(PARENT, "HyperDrosteLight")
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, UVMAP);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, UVMAP)
+	
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.25, OSCSAW)
+	ntime2 = scaleTime(time, 0.2, OSCSAW)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[2], ntime1)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], ntime2)
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

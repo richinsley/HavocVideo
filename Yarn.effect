@@ -1,0 +1,57 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Yarn"
+
+UNIFORMCOUNT = 4
+UNIFORMNAMES = { "time" , "ntex1" , "ntex2" , "diffuseTexture" }
+UNIFORMVALUE = { 1.0 , 0 , 0 , 0 }
+UNIFORMTYPE = { "float" , "sampler" , "sampler" , "sampler" }
+UNIFORMID = { 0 , 0 , 0 , 0}
+
+-- Internal data
+PROGRAMID = 0
+NOISE = 0
+LASTTIME = 0
+NOISESCALE = 0.5
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "Yarn", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+-- free all resources
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+	NOISE = createNoiseTextures(PARENT, 64, 64) -- VIDEOWIDTH / NOISESCALE , VIDEOHEIGHT / NOISESCALE);
+	setShaderNoiseSampler(PARENT, PROGRAMID, UNIFORMID[2], 2, NOISE, 0)
+	setShaderNoiseSampler(PARENT, PROGRAMID, UNIFORMID[3], 3, NOISE, 1)
+end
+
+-- free resources created in init
+function deinit()
+	freeFrameBuffer(PARENT, NOISE);
+end
+
+-- render all passes with the final pass to render buffer -1
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.75, OSCSAW);
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[1], ntime1)
+	
+	-- if the time has looped around flip the noise textures
+	if ntime1 < LASTTIME then
+		flipNoiseTextures(PARENT, NOISE)
+		setShaderNoiseSampler(PARENT, PROGRAMID, UNIFORMID[2], 2, NOISE, 0)
+		setShaderNoiseSampler(PARENT, PROGRAMID, UNIFORMID[3], 3, NOISE, 1)
+	end
+
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	LASTTIME = ntime1
+end

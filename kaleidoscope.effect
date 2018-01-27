@@ -1,0 +1,69 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "KaleidoScope"
+
+UNIFORMCOUNT = 5
+UNIFORMNAMES = { "angle_1", "angle_2", "offset_x", "offset_y" , "raycount"}
+UNIFORMVALUE = { 1, 0.0, 0.5, 0.5, 5.0 }
+UNIFORMID = {0, 0, 0, 0, 0}
+UNIFORMTYPE = { "float" , "float", "float" , "float" , "float" }
+
+PARAMETERSCOUNT = 2
+PARAMETERSNAMES = { "Direction" , "Ray Count" }
+PARAMETERSTYPES = { "float" , "int" } -- float, int, FrameBuffer
+PARAMETERSMIN = { -1.0 , 2 }
+PARAMETERSMAX = { 1.0 , 8 }
+PARAMETERSVALUE = { 0.5, 4 }
+PARAMETERSBOUND = { "none" , "none" } -- none, fft, gyroscopeX, etc
+
+-- Internal data
+PROGRAMID = 0
+
+angleval1 = 0.0
+angleval2 = 1.0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	
+	-- set the ray count * PI
+	UNIFORMVALUE[5] =  3.14159265358979323846 / UNIFORMVALUE[5]
+	PROGRAMID = loadshader("Shader", "kaleidoscope", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.25, OSCSAW);
+	ntime2 = scaleTime(time, 0.3, OSCSAW) * -1;
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[1], ntime1 * 6.283185)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[2], ntime2 * 6.283185)
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

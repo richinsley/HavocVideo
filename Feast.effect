@@ -1,0 +1,77 @@
+-- Feast shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Dilation"
+
+UNIFORMCOUNT = 2
+UNIFORMNAMES = { "alpha" , "diffuseTexture" }
+UNIFORMVALUE = { 1.0 , 0 }
+UNIFORMTYPE = { "float" , "sampler"}
+UNIFORMID = { 0 , 0 }
+
+UNIFORMCOUNT2 = 5
+UNIFORMNAMES2 = { "diffuseTexture" , "diffwidth" , "diffheight" , "mixtexture" , "mixamount" }
+UNIFORMVALUE2 = { 0 , 0.0 , 0.0 , 0 , 0.95}
+UNIFORMTYPE2 = { "sampler" , "float" , "float" , "sampler" , "float" }
+UNIFORMID2 = { 0 , 0 , 0 , 0 , 0}
+
+
+-- Internal data
+PROGRAMID = 0
+DIFID = 0
+
+ACCUMULATORS = { 0 , 0 }
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	UNIFORMVALUE2[2] = VIDEOWIDTH
+	UNIFORMVALUE2[3] = VIDEOHEIGHT
+	
+	PROGRAMID = loadshader("Shader", "DilateMaxMix", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+	DIFID = loadshader("Shader", "DefaultShader", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	ACCUMULATORS[1] = createFrameBuffer(PARENT, VIDEOWIDTH, VIDEOHEIGHT)
+	ACCUMULATORS[2] = createFrameBuffer(PARENT, VIDEOWIDTH, VIDEOHEIGHT)
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, ACCUMULATORS[1]);
+	freeFrameBuffer(PARENT, ACCUMULATORS[2]);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID2[1], 1, ACCUMULATORS[1])
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID2[4], 2, VIDEOTEXTURE)
+	renderToFrameBuffer(PARENT, PROGRAMID, ACCUMULATORS[2], 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+	-- flip ACCUMULATORS
+	local TACC = ACCUMULATORS[1]
+	ACCUMULATORS[1] = ACCUMULATORS[2]
+	ACCUMULATORS[2] = TACC
+
+	setShaderSampler(PARENT, DIFID, UNIFORMID[2], 1, ACCUMULATORS[1])
+	renderToFrameBuffer(PARENT, DIFID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	-- set the sampler back to video texture
+	setShaderSampler(PARENT, DIFID, UNIFORMID[2], 0, VIDEOTEXTURE)
+end

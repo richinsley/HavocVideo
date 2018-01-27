@@ -1,0 +1,87 @@
+-- Star shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Scuba"
+
+BLURHUNIFORMCOUNT = 2
+BLURHUNIFORMNAMES = { "videowidth", "diffuseTexture" }
+BLURHUNIFORMVALUE = { 0.0, 0.0 }
+BLURHUNIFORMID = { 0 , 0 }
+BLURHUNIFORMTYPE = { "float" , "sampler" }
+
+BLURVUNIFORMCOUNT = 2
+BLURVUNIFORMNAMES = { "videoheight", "diffuseTexture" }
+BLURVUNIFORMVALUE = { 0.0, 0.0 }
+BLURVUNIFORMID = { 0 , 0 }
+BLURVUNIFORMTYPE = { "float" , "sampler" }
+
+COMBINEUNIFORMCOUNT = 4
+COMBINEUNIFORMNAMES = { "StarBrite", "StarSampH" , "StarSampV" , "uvmap" }
+COMBINEUNIFORMVALUE = { 0.5, 0 , 0 , 0 }
+COMBINEUNIFORMID = { 0 , 0 , 0 , 0 }
+COMBINEUNIFORMTYPE = { "float" , "sampler", "sampler" , "sampler" }
+
+-- Internal data
+BLURHPROGRAMID = 0
+BLURVPROGRAMID = 0
+COMBINEPROGRAMID = 0
+
+-- temp buffers for multi passes
+HBLURBUFFER = 0
+VBLURBUFFER = 0
+
+IMAGESCALE = 2
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	BLURHPROGRAMID = loadshader("Star_Hblur", "Star_Hblur", BLURHUNIFORMCOUNT, BLURHUNIFORMNAMES, BLURHUNIFORMVALUE, BLURHUNIFORMTYPE, BLURHUNIFORMID, 0)
+	BLURVPROGRAMID = loadshader("Star_Vblur", "Star_Hblur", BLURVUNIFORMCOUNT, BLURVUNIFORMNAMES, BLURVUNIFORMVALUE, BLURVUNIFORMTYPE, BLURVUNIFORMID, 0)
+	COMBINEPROGRAMID = loadshader("Shader", "fishtank", COMBINEUNIFORMCOUNT, COMBINEUNIFORMNAMES, COMBINEUNIFORMVALUE, COMBINEUNIFORMTYPE, COMBINEUNIFORMID, 0)
+end
+
+-- free all resources
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+	HBLURBUFFER = createFrameBuffer(PARENT, VIDEOWIDTH / IMAGESCALE , VIDEOHEIGHT / IMAGESCALE)
+	VBLURBUFFER = createFrameBuffer(PARENT, VIDEOWIDTH / IMAGESCALE , VIDEOHEIGHT / IMAGESCALE)
+	UVMAP = createFrameBufferFromFile(PARENT, "fishtankuv")
+end
+
+-- free resources created in init
+function deinit()
+	freeFrameBuffer(PARENT, HBLURBUFFER);
+	freeFrameBuffer(PARENT, VBLURBUFFER);
+	freeFrameBuffer(PARENT, UVMAP);
+end
+
+-- render all passes with the final pass to DEFAULTFRAMEBUFFER
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	
+	setShaderFloatUniform(PARENT, BLURHPROGRAMID, BLURHUNIFORMID[1], VIDEOWIDTH / IMAGESCALE)
+	setShaderSampler(PARENT, BLURHPROGRAMID, BLURHUNIFORMID[2], 1, VIDEOTEXTURE)
+
+	-- render the hblur into HBLURBUFFER
+	renderToFrameBuffer(PARENT, BLURHPROGRAMID, HBLURBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	setShaderFloatUniform(PARENT, BLURVPROGRAMID, BLURVUNIFORMID[1], VIDEOHEIGHT / IMAGESCALE)
+	setShaderSampler(PARENT, BLURVPROGRAMID, BLURHUNIFORMID[2], 1, VIDEOTEXTURE)
+
+	-- render the hblur into VBLURBUFFER
+	renderToFrameBuffer(PARENT, BLURVPROGRAMID, VBLURBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+	-- set the sampler input of the diffuretexture in BLURVPROGRAMID to the luma buffer
+	setShaderSampler(PARENT, COMBINEPROGRAMID, COMBINEUNIFORMID[2], 2, HBLURBUFFER)
+	
+	-- set the sampler input of the diffuretexture in BLURVPROGRAMID to the luma buffer
+	setShaderSampler(PARENT, COMBINEPROGRAMID, COMBINEUNIFORMID[3], 3, VBLURBUFFER)
+	
+	setShaderSampler(PARENT, COMBINEPROGRAMID, COMBINEUNIFORMID[4], 4, UVMAP)
+	
+	-- combine into the DEFAULTFRAMEBUFFER
+	renderToFrameBuffer(PARENT, COMBINEPROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

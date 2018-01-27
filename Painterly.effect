@@ -1,0 +1,160 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Spray Paint"
+
+UNIFORMCOUNT = 2
+UNIFORMNAMES = { "diffuseTexture" , "brushTexture"}
+UNIFORMVALUE = { 0 , 0 }
+UNIFORMTYPE = { "sampler" , "sampler"}
+UNIFORMID = { 0 , 0 }
+
+UNIFORMCOUNT2 = 2
+UNIFORMNAMES2 = { "diffuseTexture" , "mulTexture"}
+UNIFORMVALUE2 = { 0 , 0 }
+UNIFORMTYPE2 = { "sampler" , "sampler"}
+UNIFORMID2 = { 0 , 0}
+
+UNIFORMCOUNT3 = 2
+UNIFORMNAMES3 = { "diffwidth" , "diffheight"}
+UNIFORMVALUE3 = { 0.0 , 0.0 }
+UNIFORMTYPE3 = { "float" , "float"}
+UNIFORMID3 = { 0 , 0}
+
+SPRITECOUNT = 30
+
+-- Internal data
+PROGRAMID = 0
+PROGRAMID2 = 0
+PROGRAMID3 = 0
+
+SOBELCANVAS = 0
+PAINTCANVAS = 0
+BRUSHIMAGE = 0
+
+SOBELSCALE = 0.5
+
+AR = 0.0
+
+-- float arrays for the particles 
+POSX = 0
+POSY = 0
+SCALEX = 0
+SCALEY = 0
+ROT = 0
+TU = 0
+TV = 0
+
+ROTINC = 0
+MOVX = 0
+MOVY = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("ParticleShader", "PainterlyShader", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 1)
+	PROGRAMID2 = loadshader("Shader", "DefaultShaderMul", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+	
+	UNIFORMVALUE3[1] = VIDEOWIDTH
+	UNIFORMVALUE3[2] = VIDEOHEIGHT
+	PROGRAMID3 = loadshader("Shader", "Sobel", UNIFORMCOUNT3, UNIFORMNAMES3, UNIFORMVALUE3, UNIFORMTYPE3, UNIFORMID3, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+
+	-- get the aspect ratio of the VIDEO
+	AR = VIDEOWIDTH / VIDEOHEIGHT
+
+	POSX = createFloatArray(SPRITECOUNT)
+	POSY = createFloatArray(SPRITECOUNT)
+	SCALEX = createFloatArray(SPRITECOUNT)
+	SCALEY = createFloatArray(SPRITECOUNT)
+	ROT = createFloatArray(SPRITECOUNT)
+	TU = createFloatArray(SPRITECOUNT)
+	TV = createFloatArray(SPRITECOUNT)
+
+	ROTINC = createFloatArray(SPRITECOUNT)
+	MOVX = createFloatArray(SPRITECOUNT)
+	MOVY = createFloatArray(SPRITECOUNT)
+
+	-- we only want to clear the paint canvas once
+	CLEARCANVAS = 2
+
+	PAINTCANVAS = createFrameBuffer(PARENT, VIDEOWIDTH , VIDEOHEIGHT)
+
+	for i = 1, SPRITECOUNT
+			do
+				-- we want some slight variance on the scale 
+				scale = math.random() * .1
+				u = math.random()
+				v = math.random()
+				setFloatArrayValue(POSX, i, u * 2.0 - 1.0)
+				setFloatArrayValue(POSY, i, v * 2.0 - 1.0)
+				setFloatArrayValue(ROT, i, math.random() * 360.0)
+				setFloatArrayValue(SCALEX, i, 0.05 + scale)
+				setFloatArrayValue(SCALEY, i, 0.05 + scale)
+				setFloatArrayValue(TU, i, u)
+				setFloatArrayValue(TV, i, v)
+				
+				setFloatArrayValue(ROTINC, i, math.random() * 5.0 - 2.5)
+				setFloatArrayValue(MOVX, i, (math.random() * 20.0 - 10.0) * (1.0 / VIDEOWIDTH))
+				setFloatArrayValue(MOVY, i, (math.random() * 20.0 - 10.0) * (1.0 / VIDEOHEIGHT))
+			end
+			
+	BRUSHIMAGE = createFrameBufferFromFile(PARENT, "particlebrush")
+	SOBELCANVAS = createFrameBuffer(PARENT, VIDEOWIDTH * SOBELSCALE , VIDEOHEIGHT / SOBELSCALE)
+
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, BRUSHIMAGE);
+	freeFrameBuffer(PARENT, SOBELCANVAS);
+	freeFrameBuffer(PARENT, PAINTCANVAS);
+	
+	-- set the default diffueTexture back to video texture
+	setShaderSampler(PARENT, PROGRAMID2, UNIFORMID2[1], 0, VIDEOTEXTURE)
+end
+
+-- render all passes with the final pass to render buffer -1
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	-- create the outline using sobel
+	renderToFrameBuffer(PARENT, PROGRAMID3, SOBELCANVAS, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	-- we'll update the uv coords and transform them to the position coords
+	addMMFloat(TU, MOVX, 0.0, 1.0 , FMMBOUNCE)
+	addMMFloat(TV, MOVY, 0.0, 1.0 , FMMBOUNCE)
+	addMMFloat(ROT, ROTINC, 0.0, 50.0 , FMMBOUNCE)
+	copyFloats(TU, POSX)
+	copyFloats(TV, POSY)
+	addFloat(POSX, -0.5)
+	addFloat(POSY, -0.5)
+	mulFloat(POSX, 2.0 * AR)
+	mulFloat(POSY, 2.0)
+
+	-- clear value of 1 will set alpha to zero, non 1 will set alpha to 1.0
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, VIDEOTEXTURE)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[2], 3, BRUSHIMAGE)
+
+	renderParticlesToFrameBuffer(PARENT, PROGRAMID, PAINTCANVAS, CLEARCANVAS, POSX, POSY, SCALEX, SCALEY, ROT, TU, TV)
+
+	-- copy to default render target multiplying with the sobel canvas
+	setShaderSampler(PARENT, PROGRAMID2, UNIFORMID2[1], 2, PAINTCANVAS)
+	setShaderSampler(PARENT, PROGRAMID2, UNIFORMID2[2], 3, SOBELCANVAS)
+	renderToFrameBuffer(PARENT, PROGRAMID2, DEFAULTFRAMEBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+	CLEARCANVAS = 0
+
+end

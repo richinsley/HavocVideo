@@ -1,0 +1,49 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Sub Zero"
+
+UNIFORMCOUNT = 0
+UNIFORMNAMES = { "alpha" }
+UNIFORMVALUE = { 1.0 }
+UNIFORMTYPE = { "float" }
+UNIFORMID = { 0 }
+
+-- Internal data
+PROGRAMID = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "InverseChroma", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

@@ -1,0 +1,85 @@
+-- RadiateBluR Effect 
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Negative Echo"
+
+-- shader 1
+UNIFORMCOUNT1 = 2
+UNIFORMNAMES1 = { "alpha" , "diffuseTexture" }
+UNIFORMVALUE1 = { 1.0 , 0 }
+UNIFORMTYPE1 = { "float" , "sampler"}
+UNIFORMID1 = { }
+
+-- shader 2
+UNIFORMCOUNT2 = 8
+UNIFORMNAMES2 = { "mixamount" , "mixsampler" , "diffuseTexture" , "scaleX" , "scaleY" , "atten" , "centerx" , "centery" }
+UNIFORMVALUE2 = { 0.25 , 0 , 0 , 0.95 , 0.95 , 1.0 , 0.5, 0.5 } -- initial values
+UNIFORMID2 = { }
+UNIFORMTYPE2 = { "float", "sampler" , "sampler" , "float" , "float" , "float" , "float" , "float" }
+
+-- Internal data
+DEFAULT = 0
+MIXSCALE = 0
+
+ACCUMULATORS = { 0 , 0 }
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	DEFAULT = loadshader("Shader", "DefaultShader", UNIFORMCOUNT1, UNIFORMNAMES1, UNIFORMVALUE1, UNIFORMTYPE1, UNIFORMID1, 0)
+	MIXSCALE = loadshader("Shader", "NegativeZone", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+end
+
+-- free all resources
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+	ACCUMULATORS[1] = createFrameBuffer(PARENT, VIDEOWIDTH, VIDEOHEIGHT)
+	ACCUMULATORS[2] = createFrameBuffer(PARENT, VIDEOWIDTH, VIDEOHEIGHT)
+	
+	resetuniforms(MIXSCALE , UNIFORMCOUNT2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2 )
+end
+
+-- free resources created in init
+function deinit()
+	freeFrameBuffer(PARENT, ACCUMULATORS[1]);
+	freeFrameBuffer(PARENT, ACCUMULATORS[2]);
+end
+
+-- render all passes with the final pass to render buffer -1
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.1, OSCSIN);
+	ntime2 = scaleTime(time, 0.105, OSCSIN);
+	bamount1 = ntime1 * 0.2 + 0.9
+	bamount2 = (1.0 - ntime2) * 0.2 + 0.9
+	
+	xoff = (ntime1 - 0.5) * 0.1 + 0.5
+	yoff = (ntime2 - 0.5) * 0.1 + 0.5
+	
+	setShaderFloatUniform(PARENT, MIXSCALE, UNIFORMID2[4], bamount1)
+	setShaderFloatUniform(PARENT, MIXSCALE, UNIFORMID2[5], bamount2)
+	
+	setShaderFloatUniform(PARENT, MIXSCALE, UNIFORMID2[7], xoff)
+	setShaderFloatUniform(PARENT, MIXSCALE, UNIFORMID2[8], yoff)
+	
+	setShaderSampler(PARENT, MIXSCALE, UNIFORMID2[2], 1, ACCUMULATORS[1])
+	setShaderSampler(PARENT, MIXSCALE, UNIFORMID2[3], 2, VIDEOTEXTURE)
+	renderToFrameBuffer(PARENT, MIXSCALE, ACCUMULATORS[2], 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+	-- flip ACCUMULATORS
+	local TACC = ACCUMULATORS[1]
+	ACCUMULATORS[1] = ACCUMULATORS[2]
+	ACCUMULATORS[2] = TACC
+
+	setShaderSampler(PARENT, DEFAULT, UNIFORMID1[2], 1, ACCUMULATORS[1])
+	renderToFrameBuffer(PARENT, DEFAULT, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	-- set the sampler back to video texture
+	setShaderSampler(PARENT, DEFAULT, UNIFORMID1[2], 0, VIDEOTEXTURE)
+
+end

@@ -1,0 +1,79 @@
+-- Foil shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Sky Crystal"
+
+NORMALUNIFORMCOUNT = 3
+NORMALUNIFORMNAMES = { "diffwidth" , "diffheight" , "diffuseTexture" }
+NORMALUNIFORMVALUE = { 0.0 , 0.0 , 0 }
+NORMALUNIFORMTYPE = { "float" , "float" , "sampler" }
+NORMALUNIFORMID = { 0 , 0 , 0 }
+
+
+FOILUNIFORMCOUNT = 4
+FOILUNIFORMNAMES = { "normalTexture" , "mappedtexture" , "refraction" , "rotMat"}
+FOILUNIFORMVALUE = { 0, 0, 0.01 , 0}
+FOILUNIFORMTYPE = { "sampler" , "sampler" , "float" , "matrix"}
+FOILUNIFORMID = { 0 , 0 , 0 , 0}
+
+-- Internal data
+FOILPROGRAMID = 0
+NORMALPROGID = 0
+
+-- texture to render normals to
+NORMALTEX = 0
+MAPPEDTEX = 0
+
+NORMALTEXSCALE = 1.0
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+
+	PARENT = userdata
+	
+	NORMALPROGID = loadshader("Shader", "CalcNormal", NORMALUNIFORMCOUNT, NORMALUNIFORMNAMES, NORMALUNIFORMVALUE, NORMALUNIFORMTYPE, NORMALUNIFORMID, 0)
+	FOILPROGRAMID = loadshader("Shader", "Foil", FOILUNIFORMCOUNT, FOILUNIFORMNAMES, FOILUNIFORMVALUE, FOILUNIFORMTYPE, FOILUNIFORMID, 0)
+
+end
+
+-- free all resources
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+	resetuniforms(NORMALPROGID , NORMALUNIFORMCOUNT, NORMALUNIFORMVALUE, NORMALUNIFORMTYPE, NORMALUNIFORMID )
+	
+	MAPPEDTEX = createCubeMap(PARENT, "xp","xn","yp","yn","zp","zn", 1)
+	NORMALTEX = createFrameBuffer(PARENT, VIDEOWIDTH * NORMALTEXSCALE , VIDEOHEIGHT * NORMALTEXSCALE)
+	
+	setShaderFloatUniform(PARENT, NORMALPROGID, NORMALUNIFORMID[1], VIDEOWIDTH)
+	setShaderFloatUniform(PARENT, NORMALPROGID, NORMALUNIFORMID[2], VIDEOHEIGHT)
+end
+
+-- free resources created in init
+function deinit()
+	freeFrameBuffer(PARENT, NORMALTEX);
+	freeFrameBuffer(PARENT, MAPPEDTEX);
+
+end
+
+-- render all passes with the final pass to render buffer -1
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	-- set the sampler for normalTexture to texture unit 2
+	setShaderSampler(PARENT, FOILPROGRAMID, FOILUNIFORMID[1], 2, NORMALTEX)
+	
+	-- set the sampler for MAPPEDTEX to texture unit 3
+	setShaderSampler(PARENT, FOILPROGRAMID, FOILUNIFORMID[2], 3, MAPPEDTEX)
+	
+	-- render the normals into NORMALTEX
+	renderToFrameBuffer(PARENT, NORMALPROGID, NORMALTEX, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	-- set the rotation matrix
+	setShaderMatrixUniform(PARENT, FOILPROGRAMID, FOILUNIFORMID[4], rotm)
+	
+	renderToFrameBuffer(PARENT, FOILPROGRAMID, DEFAULTFRAMEBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+end

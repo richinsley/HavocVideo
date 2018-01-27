@@ -1,0 +1,63 @@
+-- Halftone
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Etching"
+
+UNIFORMCOUNT2 = 9
+UNIFORMNAMES2 = { "diffuseTexture" , "glyphImage" , "videowidth" , "videoheight" , "glyphcount" , "xscale" , "glyphwidth" , "glyphheight" , "paperImage" }
+UNIFORMVALUE2 = { 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 }
+UNIFORMTYPE2 = { "sampler" , "sampler" , "float" , "float" , "float" , "float" , "float" , "float" , "sampler"}
+UNIFORMID2 = { 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 }
+
+-- Internal data
+GLYPHID = 0
+
+GLYPHCOUNT = 8.0
+GLYPHWIDTH = 16.0
+GLYPHHEIGHT = 15.0 -- the glyph height can safely vary from the source image
+
+SMILEYIMAGE = 0
+DOTSIMAGE = 0
+PAPERIMAGE = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	
+	UNIFORMVALUE2[3] = VIDEOWIDTH
+	UNIFORMVALUE2[4] = VIDEOHEIGHT
+	UNIFORMVALUE2[5] = GLYPHCOUNT
+	
+	-- pre-compute the scale of x to fit the glyphs  1 / (glyphwidth * glyphcount) * glyphwidth
+	UNIFORMVALUE2[6] = (1.0 / (GLYPHWIDTH * GLYPHCOUNT)) * GLYPHWIDTH
+	UNIFORMVALUE2[7] = GLYPHWIDTH
+	UNIFORMVALUE2[8] = GLYPHHEIGHT
+	GLYPHID = loadshader("Shader", "Etching", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+end
+
+function dealloc()
+
+end
+
+
+function init()
+	DOTSIMAGE = createFrameBufferFromFile(PARENT, "etch")
+	PAPERIMAGE = createFrameBufferFromFile(PARENT, "paper")
+end
+
+
+function deinit()
+	freeFrameBuffer(PARENT, DOTSIMAGE);
+	freeFrameBuffer(PARENT, PAPERIMAGE);
+end
+
+
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	setShaderSampler(PARENT, GLYPHID, UNIFORMID2[1], 2, VIDEOTEXTURE)
+	setShaderSampler(PARENT, GLYPHID, UNIFORMID2[2], 3, DOTSIMAGE)
+	setShaderSampler(PARENT, GLYPHID, UNIFORMID2[9], 4, PAPERIMAGE)
+	
+	renderToFrameBuffer(PARENT, GLYPHID, DEFAULTFRAMEBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

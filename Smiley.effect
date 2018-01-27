@@ -1,0 +1,81 @@
+-- smiley shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Smileys"
+
+UNIFORMCOUNT = 1
+UNIFORMNAMES = { "diffuseTexture" }
+UNIFORMVALUE = { 0 }
+UNIFORMTYPE = { "sampler" }
+UNIFORMID = { 0 }
+
+UNIFORMCOUNT2 = 8
+UNIFORMNAMES2 = { "diffuseTexture" , "glyphImage" , "videowidth" , "videoheight" , "glyphcount" , "xscale" , "glyphwidth" , "glyphheight"}
+UNIFORMVALUE2 = { 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0}
+UNIFORMTYPE2 = { "sampler" , "sampler" , "float" , "float" , "float" , "float" , "float" , "float"}
+UNIFORMID2 = { 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+GLYPHID = 0
+
+GLYPHCOUNT = 16.0
+GLYPHWIDTH = 16.0
+GLYPHHEIGHT = 15.0 -- the glyph height can safely vary from the source image
+
+SMILEYIMAGE = 0
+SMILEYIMAGEP = 0
+SUBIMAGE = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "DefaultNoFlip", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+	
+	UNIFORMVALUE2[3] = VIDEOWIDTH
+	UNIFORMVALUE2[4] = VIDEOHEIGHT
+	UNIFORMVALUE2[5] = GLYPHCOUNT
+	
+	-- pre-compute the scale of x to fit the glyphs  1 / (glyphwidth * glyphcount) * glyphwidth
+	UNIFORMVALUE2[6] = (1.0 / (GLYPHWIDTH * GLYPHCOUNT)) * GLYPHWIDTH
+	UNIFORMVALUE2[7] = GLYPHWIDTH
+	UNIFORMVALUE2[8] = GLYPHHEIGHT
+	GLYPHID = loadshader("Shader", "Glyph", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+end
+
+function dealloc()
+
+end
+
+
+function init()
+	SMILEYIMAGE = createFrameBufferFromFile(PARENT, "faces")
+	SMILEYIMAGEP = createFrameBufferFromFile(PARENT, "facesP")
+	SUBIMAGE = createFrameBuffer(PARENT, VIDEOWIDTH / GLYPHWIDTH , VIDEOHEIGHT / GLYPHHEIGHT)
+	setFrameBufferFiltering(PARENT, SUBIMAGE, 0)
+end
+
+
+function deinit()
+	freeFrameBuffer(PARENT, SMILEYIMAGE);
+	freeFrameBuffer(PARENT, SMILEYIMAGEP);
+	freeFrameBuffer(PARENT, SUBIMAGE);
+end
+
+
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 1, VIDEOTEXTURE)
+	renderToFrameBuffer(PARENT, PROGRAMID, SUBIMAGE, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+		
+	setShaderSampler(PARENT, GLYPHID, UNIFORMID2[1], 2, SUBIMAGE)
+	
+	if orientation == 3 or orientation == 4 then
+		setShaderSampler(PARENT, GLYPHID, UNIFORMID2[2], 3, SMILEYIMAGE)
+	else
+		setShaderSampler(PARENT, GLYPHID, UNIFORMID2[2], 3, SMILEYIMAGEP)
+	end
+	
+	renderToFrameBuffer(PARENT, GLYPHID, DEFAULTFRAMEBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

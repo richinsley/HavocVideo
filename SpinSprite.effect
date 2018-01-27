@@ -1,0 +1,132 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Spin Sprite"
+
+UNIFORMCOUNT = 1
+UNIFORMNAMES = { "maskTexture" }
+UNIFORMVALUE = { 0 }
+UNIFORMTYPE = { "sampler" }
+UNIFORMID = { 0 }
+
+UNIFORMCOUNT2 = 1
+UNIFORMNAMES2 = { "diffuseTexture" }
+UNIFORMVALUE2 = { 0 }
+UNIFORMTYPE2 = { "sampler" }
+UNIFORMID2 = { 0 }
+
+SPRITECOUNT = 30
+
+-- Internal data
+PROGRAMID = 0
+DEFAULT = 0
+PAINTCANVAS = 0
+
+-- float arrays for the particles 
+POSX = 0
+POSY = 0
+SCALEX = 0
+SCALEY = 0
+ROT = 0
+TU = 0
+TV = 0
+
+ROTINC = 0
+MOVX = 0
+MOVY = 0
+
+MASK = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("ParticleShader", "ParticleShader", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 1)
+	DEFAULT = loadshader("Shader", "DefaultShader", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+
+POSX = createFloatArray(SPRITECOUNT)
+POSY = createFloatArray(SPRITECOUNT)
+SCALEX = createFloatArray(SPRITECOUNT)
+SCALEY = createFloatArray(SPRITECOUNT)
+ROT = createFloatArray(SPRITECOUNT)
+TU = createFloatArray(SPRITECOUNT)
+TV = createFloatArray(SPRITECOUNT)
+
+ROTINC = createFloatArray(SPRITECOUNT)
+MOVX = createFloatArray(SPRITECOUNT)
+MOVY = createFloatArray(SPRITECOUNT)
+
+-- we only want to clear the paint canvas once
+CLEARCANVAS = 2
+
+PAINTCANVAS = createFrameBuffer(PARENT, VIDEOWIDTH , VIDEOHEIGHT)
+MASK = createFrameBufferFromFile(PARENT, "spritemask")
+
+for i = 1, SPRITECOUNT
+		do
+			u = math.random()
+			v = math.random()
+			setFloatArrayValue(POSX, i, u * 2.0 - 1.0)
+			setFloatArrayValue(POSY, i, v * 2.0 - 1.0)
+			setFloatArrayValue(ROT, i, math.random() * 360.0)
+			setFloatArrayValue(SCALEX, i, 0.2)
+			setFloatArrayValue(SCALEY, i, 0.2)
+			setFloatArrayValue(TU, i, u)
+			setFloatArrayValue(TV, i, v)
+			
+			setFloatArrayValue(ROTINC, i, math.random() * 5.0 - 2.5)
+			setFloatArrayValue(MOVX, i, (math.random() * 20.0 - 10.0) * (1.0 / VIDEOWIDTH))
+			setFloatArrayValue(MOVY, i, (math.random() * 20.0 - 10.0) * (1.0 / VIDEOHEIGHT))
+		end
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, PAINTCANVAS);
+	freeFrameBuffer(PARENT, MASK);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.25, OSCSIN) * 0.2
+	
+for i = 1, SPRITECOUNT
+		do
+			setFloatArrayValue(SCALEX, i, 0.2 + ntime1)
+			setFloatArrayValue(SCALEY, i, 0.2 + ntime1)
+		end
+		
+-- update the particles
+addFloats(ROT, ROTINC)
+addMMFloat(POSX, MOVX, -1.2, 1.2 , FMMBOUNCE)
+addMMFloat(POSY, MOVY, -1.0, 1.0 , FMMBOUNCE)
+
+-- clear value of 1 will set alpha to zero, non 1 will set alpha to 1.0
+setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 3, MASK)
+renderParticlesToFrameBuffer(PARENT, PROGRAMID, PAINTCANVAS, 0, POSX, POSY, SCALEX, SCALEY, ROT, TU, TV)
+
+-- copy to default render target
+setShaderSampler(PARENT, DEFAULT, UNIFORMID2[1], 4, PAINTCANVAS)
+renderToFrameBuffer(PARENT, DEFAULT, DEFAULTFRAMEBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+setShaderSampler(PARENT, DEFAULT, UNIFORMID2[1], 1, VIDEOTEXTURE)
+end

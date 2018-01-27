@@ -1,0 +1,53 @@
+-- Sobel shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Sketch"
+
+UNIFORMCOUNT = 2
+UNIFORMNAMES = { "diffwidth" , "diffheight"}
+UNIFORMVALUE = { 0.0 , 0.0 }
+UNIFORMTYPE = { "float" , "float"}
+UNIFORMID = { 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+HBUFFER = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	UNIFORMVALUE[1] = VIDEOWIDTH
+	UNIFORMVALUE[2] = VIDEOHEIGHT
+	
+	PROGRAMID = loadshader("Canny", "CannySketch", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+	
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

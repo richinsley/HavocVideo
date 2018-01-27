@@ -1,0 +1,59 @@
+-- Concentrick shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Concentrick"
+
+UNIFORMCOUNT = 3
+UNIFORMNAMES = { "uvTexture" , "lighting" , "offset" }
+UNIFORMVALUE = { 0 , 0 , 0.0 }
+UNIFORMTYPE = { "sampler" , "sampler" , "float" }
+UNIFORMID = { 0 , 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+UVMAP = 0
+LIGHT = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "Concentric", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	UVMAP = createFrameBufferFromFile(PARENT, "rings")
+	LIGHT = createFrameBufferFromFile(PARENT, "ringslight")
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, UVMAP);
+	freeFrameBuffer(PARENT, LIGHT);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, UVMAP)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[2], 3, LIGHT)
+	
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.5, OSCSAW);
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], ntime1)
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

@@ -1,0 +1,62 @@
+-- Woven shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Wicker"
+
+UNIFORMCOUNT = 4
+UNIFORMNAMES = { "lenseTexture" , "lightingTexture" , "uoffset" , "voffset" }
+UNIFORMVALUE = { 0 , 0 , 0.0, 0.0 }
+UNIFORMTYPE = { "sampler" , "sampler" , "float" , "float" }
+UNIFORMID = { 0 , 0 , 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+LENSEIMAGE = 0
+LIGHTIMAGE = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "Weave", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	LENSEIMAGE = createFrameBufferFromFile(PARENT, "weaveLense")
+	LIGHTIMAGE = createFrameBufferFromFile(PARENT, "weaveSaturation")
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, LENSEIMAGE);
+	freeFrameBuffer(PARENT, LIGHTIMAGE);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.1, OSCSAW);
+	
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 3, LENSEIMAGE)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[2], 4, LIGHTIMAGE)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], ntime1)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[4], ntime1)
+	
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

@@ -1,0 +1,61 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Vortex"
+
+UNIFORMCOUNT = 7
+UNIFORMNAMES = { "xscale" , "yscale", "amount", "centerx", "centery" , "radius" , "whirl"}
+UNIFORMVALUE = { 1.0 , 1.0 , 0.0 , 0.5 , 0.5 , 1.0 , 90.0 }
+UNIFORMTYPE = { "float" , "float" , "float" , "float" , "float" , "float" , "float" }
+UNIFORMID = { 0, 0, 0, 0, 0, 0, 0 }
+
+PARAMETERSCOUNT = 0
+PARAMETERSNAMES = {  }
+PARAMETERSTYPES = {   } -- float, int, FrameBuffer
+PARAMETERSMIN = {   }
+PARAMETERSMAX = {   }
+PARAMETERSVALUE = {  }
+PARAMETERSBOUND = {   } -- none, fft, gyroscopeX, etc
+
+-- Internal data
+PROGRAMID = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "PinchWhirl", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	
+	-- ntime1 = scaleTime(time, 0.5, OSCSIN) * 180.0 - 90.0;
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[7], math.sin(rotz * 6.2831) * 360.0)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], math.sin(rotx * 6.2831) * 2.0)
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

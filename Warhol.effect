@@ -1,0 +1,78 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "The Factory"
+
+UNIFORMCOUNT = 4
+UNIFORMNAMES = { "diffuseTexture" , "red" , "green" , "blue" }
+UNIFORMVALUE = { 0, 0.0 , 0.5, 1.0 }
+UNIFORMTYPE = { "sampler" , "float" , "float" , "float"}
+UNIFORMID = { 0 , 0 , 0 , 0 }
+
+UNIFORMCOUNT2 = 1
+UNIFORMNAMES2 = { "diffuseTexture" }
+UNIFORMVALUE2 = { 0 }
+UNIFORMTYPE2 = { "sampler" }
+UNIFORMID2 = { 0 }
+
+COLORS = { { 1.0 , 0.8, 0.2 } , { 0.0, 1.0, 0.5 } , { 0.0 , 0.5, 1.0 } , { 0.0, 1.0, 0.0 } , { 1.0 , 1.0, 1.0 } , { 1.0, 0.0, 0.0 } , { 1.0, 0.2, 0.8 } , { 1.0, 0.0, 1.0 } , { 0.0, 1.0, 0.0 } }
+-- POSITIONS = { { -0.89, -0.666666} , { 0, -0.666666 } , { 0.89, -0.666666 } , { -0.89, 0.0 } , { 0.0 , 0.0 } , { 0.89, 0.0 } , { -0.89, 0.666666 } , { 0, 0.666666 } , { 0.89, .666666 } }
+POSITIONS = { { -0.5, -0.5} , { 0, -0.5 } , { 0.5, -0.5 } , { -0.5, 0.0 } , { 0.0 , 0.0 } , { 0.5, 0.0 } , { -0.5, 0.5 } , { 0, 0.5 } , { 0.5, 0.5 } }
+FRAMES = {}
+
+-- Internal data
+PROGRAMID = 0
+DEFAULTID = 0
+FRAMESCALE = 0.25
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	DEFAULTID = loadshader("Shader", "DefaultNoFlip", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+	PROGRAMID = loadshader("Shader", "MulColor", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+-- free all resources
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+for i = 1, 9
+		do
+			FRAMES[i] = createFrameBuffer(PARENT, VIDEOWIDTH * FRAMESCALE , VIDEOHEIGHT * FRAMESCALE)
+		end
+end
+
+-- free resources created in init
+function deinit()
+for i = 1, 9
+		do
+			freeFrameBuffer(PARENT, FRAMES[i]);
+		end
+end
+
+-- render all passes with the final pass to render buffer -1
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	-- render to the center FRAME and shift them all down
+	setShaderSampler(PARENT, DEFAULTID, UNIFORMID2[1], 2, VIDEOTEXTURE)
+	renderToFrameBuffer(PARENT, DEFAULTID, FRAMES[6], 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	local temp = FRAMES[1]
+	for i = 1, 8
+		do
+			FRAMES[i] = FRAMES[i + 1]
+		end
+	FRAMES[9] = temp
+	
+	-- render all the stored frames with the assigned colors
+	for i = 1, 9
+		do
+			setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[2], COLORS[i][1])
+			setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], COLORS[i][2])
+			setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[4], COLORS[i][3])
+			setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, FRAMES[i])
+			renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 0, 0.0, 0.333333, 0.333333, POSITIONS[i][1], POSITIONS[i][2])
+		end
+end

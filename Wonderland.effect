@@ -1,0 +1,60 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Wonderland"
+
+UNIFORMCOUNT = 3
+UNIFORMNAMES = { "remapTexture" , "ntex" , "rotMat" }
+UNIFORMVALUE = { 0, 0, 0.0, 0.0 }
+UNIFORMTYPE = { "sampler" , "sampler", "float" }
+UNIFORMID = { 0 , 0 , 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+NTEX = 0
+REMAP = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "Wonderland", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	NTEX = createFrameBufferFromFile(PARENT, "checker")
+	REMAP = createFrameBufferFromFile(PARENT, "half")
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, NTEX)
+	freeFrameBuffer(PARENT, REMAP)
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, REMAP)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[2], 3, NTEX)
+	
+	-- set the rotation matrix
+	setShaderMatrixUniform(PARENT, PROGRAMID, UNIFORMID[3], rotm)
+
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

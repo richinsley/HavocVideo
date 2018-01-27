@@ -1,0 +1,144 @@
+-- Sobel shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Zodiac"
+
+UNIFORMCOUNT = 4
+UNIFORMNAMES = { "diffwidth" , "diffheight" , "time", "noiseTexture" }
+UNIFORMVALUE = { 0.0 , 0.0 , 0 , 0 }
+UNIFORMTYPE = { "float" , "float" , "float" , "sampler" }
+UNIFORMID = { 0 , 0 , 0 , 0 }
+
+BLURHUNIFORMCOUNT = 2
+BLURHUNIFORMNAMES = { "videowidth", "diffuseTexture" }
+BLURHUNIFORMVALUE = { 0.0, 0.0 }
+BLURHUNIFORMID = { 0 , 0 }
+BLURHUNIFORMTYPE = { "float" , "sampler" }
+
+BLURVUNIFORMCOUNT = 2
+BLURVUNIFORMNAMES = { "videoheight", "diffuseTexture" }
+BLURVUNIFORMVALUE = { 0.0, 0.0 }
+BLURVUNIFORMID = { 0 , 0 }
+BLURVUNIFORMTYPE = { "float" , "sampler" }
+
+COMBINEUNIFORMCOUNT = 5
+COMBINEUNIFORMNAMES = { "StarBrite", "StarSampH" , "StarSampV" , "mappedtexture" , "rotMat" }
+COMBINEUNIFORMVALUE = { 2.0, 0 , 0 , 0 , 0 }
+COMBINEUNIFORMID = { 0 , 0 , 0 , 0 , 0 }
+COMBINEUNIFORMTYPE = { "float" , "sampler", "sampler" , "sampler" , "matrix" }
+
+-- Internal data
+PROGRAMID = 0
+BLURHPROGRAMID = 0
+BLURVPROGRAMID = 0
+COMBINEPROGRAMID = 0
+
+-- our textures and render targets
+SOBELNOISEBUFFER = 0
+HBLURBUFFER = 0
+VBLURBUFFER = 0
+NOISETEXTURE = 0
+MAPPEDTEX = 0
+
+SOBELBUFFERSCALE = 0.25
+BLURBUFFERSCALE = 0.25
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	UNIFORMVALUE[1] = VIDEOWIDTH
+	UNIFORMVALUE[2] = VIDEOHEIGHT
+	
+	PROGRAMID = loadshader("Shader", "ZodiacSobel", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+	BLURHPROGRAMID = loadshader("Star_Hblur", "Star_Hblur", BLURHUNIFORMCOUNT, BLURHUNIFORMNAMES, BLURHUNIFORMVALUE, BLURHUNIFORMTYPE, BLURHUNIFORMID, 0)
+	BLURVPROGRAMID = loadshader("Star_Vblur", "Star_Hblur", BLURVUNIFORMCOUNT, BLURVUNIFORMNAMES, BLURVUNIFORMVALUE, BLURVUNIFORMTYPE, BLURVUNIFORMID, 0)
+	COMBINEPROGRAMID = loadshader("Shader", "ZodiacCombine", COMBINEUNIFORMCOUNT, COMBINEUNIFORMNAMES, COMBINEUNIFORMVALUE, COMBINEUNIFORMTYPE, COMBINEUNIFORMID, 0)
+end
+
+-- free all resources
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+	SOBELNOISEBUFFER = createFrameBuffer(PARENT, VIDEOWIDTH * SOBELBUFFERSCALE , VIDEOHEIGHT * SOBELBUFFERSCALE)
+	HBLURBUFFER = createFrameBuffer(PARENT, VIDEOWIDTH * BLURBUFFERSCALE , VIDEOHEIGHT * BLURBUFFERSCALE)
+	VBLURBUFFER = createFrameBuffer(PARENT, VIDEOWIDTH * BLURBUFFERSCALE , VIDEOHEIGHT * BLURBUFFERSCALE)
+	NOISETEXTURE = createFrameBufferFromFile(PARENT, "ZodiacNoise")
+	MAPPEDTEX = createCubeMap(PARENT, "sxp", "sxn", "syp", "syn", "szp", "szn", 1)
+end
+
+-- free resources created in init
+function deinit()
+	freeFrameBuffer(PARENT, SOBELNOISEBUFFER);
+	freeFrameBuffer(PARENT, HBLURBUFFER);
+	freeFrameBuffer(PARENT, VBLURBUFFER);
+	freeFrameBuffer(PARENT, NOISETEXTURE);
+	freeFrameBuffer(PARENT, MAPPEDTEX);
+end
+
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	-- combine sobel outline and noise so the stars twinkle
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.05, OSCSIN);
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], ntime1)
+	
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[4], 2, NOISETEXTURE)
+	
+	-- render the noisey outline into the sobel noise buffer
+	renderToFrameBuffer(PARENT, PROGRAMID, SOBELNOISEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+
+	-- set the sampler input of the diffuretexture in BLURHPROGRAMID to the luma buffer
+	setShaderSampler(PARENT, BLURHPROGRAMID, BLURHUNIFORMID[2], 1, SOBELNOISEBUFFER)
+	
+	setShaderFloatUniform(PARENT, BLURHPROGRAMID, BLURHUNIFORMID[1], VIDEOWIDTH * SOBELBUFFERSCALE)
+	
+	-- render the hblur into HBLURBUFFER
+	renderToFrameBuffer(PARENT, BLURHPROGRAMID, HBLURBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+	-- set the sampler input of the diffuretexture in BLURVPROGRAMID to the luma buffer
+	setShaderSampler(PARENT, BLURVPROGRAMID, BLURVUNIFORMID[2], 1, SOBELNOISEBUFFER)
+	
+	setShaderFloatUniform(PARENT, BLURVPROGRAMID, BLURVUNIFORMID[1], VIDEOHEIGHT * SOBELBUFFERSCALE)
+	
+	-- render the hblur into VBLURBUFFER
+	renderToFrameBuffer(PARENT, BLURVPROGRAMID, VBLURBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+	-- set the sampler input of the diffuretexture in BLURVPROGRAMID to the luma buffer
+	setShaderSampler(PARENT, COMBINEPROGRAMID, COMBINEUNIFORMID[2], 4, HBLURBUFFER)
+	
+	-- set the sampler input of the diffuretexture in BLURVPROGRAMID to the luma buffer
+	setShaderSampler(PARENT, COMBINEPROGRAMID, COMBINEUNIFORMID[3], 5, VBLURBUFFER)
+	
+	setShaderMatrixUniform(PARENT, COMBINEPROGRAMID, COMBINEUNIFORMID[5], rotm)
+	setShaderSampler(PARENT, COMBINEPROGRAMID, COMBINEUNIFORMID[4], 6, MAPPEDTEX)
+	
+	-- combine into the DEFAULTFRAMEBUFFER
+	renderToFrameBuffer(PARENT, COMBINEPROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+end
+
+--[[
+-- Just show the sobel noise outline
+-- render all passes with the final pass to render buffer -1
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	-- combine sobel outline and noise so the stars twinkle
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.01, OSCSAW);
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], ntime1)
+	
+	-- if the time has looped around flip the noise textures
+	if ntime1 < LASTTIME then
+		flipNoiseTextures(PARENT, NOISE)
+		setShaderNoiseSampler(PARENT, PROGRAMID, UNIFORMID[4], 2, NOISE, 0)
+		setShaderNoiseSampler(PARENT, PROGRAMID, UNIFORMID[5], 3, NOISE, 1)
+	end
+	
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	LASTTIME = ntime1
+end
+]]--

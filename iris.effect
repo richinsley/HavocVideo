@@ -1,0 +1,51 @@
+-- UVTest shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Splosion"
+
+UNIFORMCOUNT = 1
+UNIFORMNAMES = { "uvTexture" }
+UNIFORMVALUE = { 0 }
+UNIFORMTYPE = { "sampler" }
+UNIFORMID = { 0 }
+
+-- Internal data
+PROGRAMID = 0
+UVMAP = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "heartShapedBox", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	UVMAP = createFrameBufferFromFile(PARENT, "iris")
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, UVMAP);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, UVMAP)
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

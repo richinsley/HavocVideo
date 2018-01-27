@@ -1,0 +1,57 @@
+-- the global video texture
+VIDEOTEXTURE = 0
+
+-- width and height of the video texture
+VIDEOWIDTH = 0
+VIDEOHEIGHT = 0
+
+-- the ES2Renderer object that owns this script
+PARENT = 0
+
+-- oscilator types
+OSCSAW = 0
+OSCTRI = 1
+OSCSIN = 2
+OSCSQR = 3
+
+-- float op min max
+FMMBOUNCE = 0
+FMMCLAMP = 1
+FMMLOOP = 2
+
+-- the target render buffer for final step of all effects
+DEFAULTFRAMEBUFFER = 0
+
+-- the Default button image to use if one is not specified
+BUTTONIMAGE = "defaultEffectButton"
+
+-- the Default effect name if one if not specified
+EFFECTNAME = "Some Cool Effect"
+
+-- default function for creating a shader program and loading it's uniform values
+function loadshader(vertexshader, fragmentshader, ucount, unames, uvalues, utypes, uids, hasUV2)
+	local sprog = createShaderProgram(PARENT, vertexshader, fragmentshader, hasUV2);
+	for i = 1, ucount
+		do
+			-- tables are 1 based!
+			uids[i] = getShaderUniform(PARENT, sprog, unames[i])
+			if utypes[i] == "float" then
+				setShaderFloatUniform(PARENT, sprog, uids[i], uvalues[i])
+			end
+		end
+	return sprog
+end
+
+function resetuniforms(sprog, ucount, uvalues, utypes, uids )
+	for i = 1, ucount
+		do
+			-- tables are 1 based!
+			if utypes[i] == "float" then
+				setShaderFloatUniform(PARENT, sprog, uids[i], uvalues[i])
+			end
+			
+			if utypes[i] == "sampler" then
+				setShaderSampler(PARENT, sprog, uids[i], 1, VIDEOTEXTURE)
+			end
+		end
+end

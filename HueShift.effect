@@ -1,0 +1,72 @@
+-- HueShift shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Hue Shift"
+
+UNIFORMCOUNT = 0
+UNIFORMNAMES = {  }
+UNIFORMVALUE = {  }
+UNIFORMID = { }
+UNIFORMTYPE = { }
+
+SHIFTUNIFORMCOUNT = 2
+SHIFTUNIFORMNAMES = { "diffuseTexture" , "time" }
+SHIFTUNIFORMVALUE = { 0, 0.0 }
+SHIFTUNIFORMID = { 0 , 0 }
+SHIFTUNIFORMTYPE = { "sampler" , "float" }
+
+-- Internal data
+TOHSLPROG = 0
+SHIFTPROG = 0
+
+-- temp buffers for multi passes
+HSLBUFFER = 0
+
+HUESCALE = 0.5
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	TOHSLPROG = loadshader("Shader", "ToHSL", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+	SHIFTPROG = loadshader("Shader", "HueShift", SHIFTUNIFORMCOUNT, SHIFTUNIFORMNAMES, SHIFTUNIFORMVALUE, SHIFTUNIFORMTYPE, SHIFTUNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	HSLBUFFER = createFrameBuffer(PARENT, VIDEOWIDTH * HUESCALE, VIDEOHEIGHT * HUESCALE)
+	
+	-- set the sampler input of the diffuretexture in SHIFTPROG to the hsl buffer
+	setShaderSampler(PARENT, SHIFTPROG, SHIFTUNIFORMID[1], 2, HSLBUFFER)
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, HSLBUFFER)
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	-- convert to HSL into HSLBUFFER
+	renderToFrameBuffer(PARENT, TOHSLPROG, HSLBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	-- get the fraction of the second from the time	
+	ntime1 = scaleTime(time, 0.5, OSCSAW)
+	setShaderFloatUniform(PARENT, SHIFTPROG, SHIFTUNIFORMID[2], ntime1)
+	
+	renderToFrameBuffer(PARENT, SHIFTPROG, DEFAULTFRAMEBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

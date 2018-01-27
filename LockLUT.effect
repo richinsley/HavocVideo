@@ -1,0 +1,68 @@
+-- Kaleidoscope shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Freeze Frame"
+
+UNIFORMCOUNT = 3
+UNIFORMNAMES = { "diff2" , "lut" , "time" }
+UNIFORMVALUE = { 0, 0, 0.0 }
+UNIFORMTYPE = { "sampler" , "sampler" , "float" }
+UNIFORMID = { 0 , 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+LUT = 0
+LOCKIMAGE = 0
+LASTTIME = 1.0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "LockLUT", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	LUT = createFrameBufferFromFile(PARENT, "TransitionLUTSoft")
+	LOCKIMAGE = createFrameBuffer(PARENT, VIDEOWIDTH , VIDEOHEIGHT)
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, LUT);
+	freeFrameBuffer(PARENT, LOCKIMAGE);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.5, OSCSAW);
+	
+	if ntime1 < LASTTIME then
+		copyTexture(PARENT, VIDEOTEXTURE, LOCKIMAGE)
+	end
+	
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, LOCKIMAGE)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[2], 3, LUT)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], 1.0 - ntime1)
+	
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	LASTTIME = ntime1
+end

@@ -1,0 +1,72 @@
+-- UVTest shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Wax Works"
+
+UNIFORMCOUNT = 3
+UNIFORMNAMES = { "uvTexture1" , "uvTexture2" , "mixuv" }
+UNIFORMVALUE = { 0 , 0 , 0.0}
+UNIFORMTYPE = { "sampler" , "sampler" , "float" }
+UNIFORMID = { 0 , 0 , 0 }
+
+-- Internal data
+PROGRAMID = 0
+SMAPS = {}
+CURS1 = 1
+CURS2 = 2
+LASTTIME = 1.0
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	PROGRAMID = loadshader("Shader", "Smudged", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+end
+
+-- free all resources
+function dealloc()
+
+end
+
+-- create any resources that are needed for the immidiate use of the effect
+function init()
+	SMAPS[1] = createFrameBufferFromFile(PARENT, "smm1")
+	SMAPS[2] = createFrameBufferFromFile(PARENT, "smm2")
+	SMAPS[3] = createFrameBufferFromFile(PARENT, "smm3")
+	SMAPS[4] = createFrameBufferFromFile(PARENT, "smm4")
+	SMAPS[5] = createFrameBufferFromFile(PARENT, "smm5")
+	
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, SMAPS[CURS1])
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID[2], 3, SMAPS[CURS1])
+end
+
+-- free resources created in init
+function deinit()
+	freeFrameBuffer(PARENT, SMAPS[1])
+	freeFrameBuffer(PARENT, SMAPS[2])
+	freeFrameBuffer(PARENT, SMAPS[3])
+	freeFrameBuffer(PARENT, SMAPS[4])
+	freeFrameBuffer(PARENT, SMAPS[5])
+end
+
+-- render all passes with the final pass to render buffer -1
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	itime , ftime = math.modf(time)
+	ntime1 = scaleTime(time, 0.5, OSCSAW)
+	setShaderFloatUniform(PARENT, PROGRAMID, UNIFORMID[3], ntime1)
+	
+	if ntime1 < LASTTIME then
+		CURS1 = CURS2
+		
+		while CURS1 == CURS2 do
+			CURS2 = math.random(5)
+		end
+		
+		setShaderSampler(PARENT, PROGRAMID, UNIFORMID[1], 2, SMAPS[CURS1])
+		setShaderSampler(PARENT, PROGRAMID, UNIFORMID[2], 3, SMAPS[CURS2])
+	end
+	
+	renderToFrameBuffer(PARENT, PROGRAMID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	LASTTIME = ntime1
+end

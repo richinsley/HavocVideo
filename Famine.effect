@@ -1,0 +1,100 @@
+-- Feast shader
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Gaunt Noir"
+
+UNIFORMCOUNT = 2
+UNIFORMNAMES = { "alpha" , "diffuseTexture" }
+UNIFORMVALUE = { 1.0 , 0 }
+UNIFORMTYPE = { "float" , "sampler"}
+UNIFORMID = { 0 , 0 }
+
+UNIFORMCOUNT2 = 6
+UNIFORMNAMES2 = { "diffuseTexture" , "diffwidth" , "diffheight" , "mixtexture" , "mixamount" , "sobeltexture" }
+UNIFORMVALUE2 = { 0 , 0.0 , 0.0 , 0 , 0.95 , 0}
+UNIFORMTYPE2 = { "sampler" , "float" , "float" , "sampler" , "float" , "sampler"}
+UNIFORMID2 = { 0 , 0 , 0 , 0 , 0 , 0}
+
+UNIFORMCOUNT3 = 2
+UNIFORMNAMES3 = { "diffwidth" , "diffheight"}
+UNIFORMVALUE3 = { 0.0 , 0.0 }
+UNIFORMTYPE3 = { "float" , "float"}
+UNIFORMID3 = { 0 , 0}
+
+-- Internal data
+PROGRAMID = 0
+DIFID = 0
+SOBEL = 0
+
+ACCUMULATORS = { 0 , 0 }
+SOBELBUFFER = 0
+SOBELSCALE = 0.75
+
+-- create any resources that are needed for the lifetime of the effect
+function alloc(userdata)
+	PARENT = userdata
+	UNIFORMVALUE2[2] = VIDEOWIDTH
+	UNIFORMVALUE2[3] = VIDEOHEIGHT
+	
+	PROGRAMID = loadshader("Shader", "DilateMinMix", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+	DIFID = loadshader("Shader", "DefaultShader", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+	
+	UNIFORMVALUE3[1] = VIDEOWIDTH * SOBELSCALE
+	UNIFORMVALUE3[2] = VIDEOHEIGHT * SOBELSCALE
+	
+	SOBEL = loadshader("Shader", "Sobel", UNIFORMCOUNT3, UNIFORMNAMES3, UNIFORMVALUE3, UNIFORMTYPE3, UNIFORMID3, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	ACCUMULATORS[1] = createFrameBuffer(PARENT, VIDEOWIDTH, VIDEOHEIGHT)
+	ACCUMULATORS[2] = createFrameBuffer(PARENT, VIDEOWIDTH, VIDEOHEIGHT)
+	SOBELBUFFER = createFrameBuffer(PARENT, VIDEOWIDTH * SOBELSCALE, VIDEOHEIGHT * SOBELSCALE)
+	
+	-- we only need to do this once
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID2[4], 2, VIDEOTEXTURE)
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID2[6], 3, SOBELBUFFER)
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, ACCUMULATORS[1]);
+	freeFrameBuffer(PARENT, ACCUMULATORS[2]);
+	freeFrameBuffer(PARENT, SOBELBUFFER);
+	
+	-- set the sampler back to video texture
+	setShaderSampler(PARENT, DIFID, UNIFORMID[2], 0, VIDEOTEXTURE)
+
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+
+	-- calc the sobel outline
+	renderToFrameBuffer(PARENT, SOBEL, SOBELBUFFER, 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	-- dilate with min
+	setShaderSampler(PARENT, PROGRAMID, UNIFORMID2[1], 1, ACCUMULATORS[1])
+	renderToFrameBuffer(PARENT, PROGRAMID, ACCUMULATORS[2], 0, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+	-- flip ACCUMULATORS
+	local TACC = ACCUMULATORS[1]
+	ACCUMULATORS[1] = ACCUMULATORS[2]
+	ACCUMULATORS[2] = TACC
+
+	setShaderSampler(PARENT, DIFID, UNIFORMID[2], 1, ACCUMULATORS[1])
+	renderToFrameBuffer(PARENT, DIFID, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end

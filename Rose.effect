@@ -1,0 +1,67 @@
+-- Toon Cell effect
+
+-- The globals that will be expected to exist
+EFFECTNAME = "Rose Glasses"
+
+UNIFORMCOUNT = 3
+UNIFORMNAMES = { "diffwidth" , "diffheight" , "kdist"}
+UNIFORMVALUE = { 0.0 , 0.0 , 2.0 }
+UNIFORMTYPE = { "float" , "float" , "float" }
+UNIFORMID = { 0 , 0 , 0 }
+
+UNIFORMCOUNT2 = 1
+UNIFORMNAMES2 = { "blured" }
+UNIFORMVALUE2 = { 0 }
+UNIFORMTYPE2 = { "sampler" }
+UNIFORMID2 = { 0 }
+
+-- Internal data
+PROGRAMID = 0
+ROSE = 0
+GRAD = 0
+
+BSCALE = 0.5
+SCALED = 0
+
+--[[
+	create any resources that are needed for the lifetime of the effect
+]]--
+function alloc(userdata)
+	PARENT = userdata
+	UNIFORMVALUE[1] = VIDEOWIDTH
+	UNIFORMVALUE[2] = VIDEOHEIGHT
+	
+	PROGRAMID = loadshader("Kernel", "Gaussian", UNIFORMCOUNT, UNIFORMNAMES, UNIFORMVALUE, UNIFORMTYPE, UNIFORMID, 0)
+	ROSE = loadshader("Shader", "Rose", UNIFORMCOUNT2, UNIFORMNAMES2, UNIFORMVALUE2, UNIFORMTYPE2, UNIFORMID2, 0)
+end
+
+--[[
+	free all resources
+]]--
+function dealloc()
+	
+end
+
+--[[
+	create any resources that are needed for the immidiate use of the effect
+]]--
+function init()
+	SCALED = createFrameBuffer(PARENT, VIDEOWIDTH * BSCALE , VIDEOHEIGHT * BSCALE)
+end
+
+--[[
+	free resources created in init
+]]--
+function deinit()
+	freeFrameBuffer(PARENT, SCALED);
+end
+
+--[[
+	render all passes with the final pass to render buffer -1
+]]--
+function render(time , rotx, roty, rotz, audioLevel, rotm, orientation)
+	renderToFrameBuffer(PARENT, PROGRAMID, SCALED, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+	
+	setShaderSampler(PARENT, ROSE, UNIFORMID2[1], 2, SCALED)
+	renderToFrameBuffer(PARENT, ROSE, DEFAULTFRAMEBUFFER, 1, 0.0, 1.0, 1.0, 0.0, 0.0)
+end
